@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>别墅梯旧房改造 LiDAR 勘测原型</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">别墅梯旧房改造</p>
+        <h1>拆除 / 保留测算原型</h1>
+      </div>
+      <div class="header-actions">
+        <button id="loadDemo" class="secondary" type="button">载入示例</button>
+        <button id="mockScan" class="secondary" type="button">模拟 LiDAR 导入</button>
+        <button id="printReport" class="primary" type="button">打印 / 导出 PDF</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="panel input-panel" aria-label="现场数据录入">
+        <div class="panel-heading">
+          <h2>现场数据</h2>
+          <span id="completionBadge">待补全</span>
+        </div>
+
+        <form id="surveyForm">
+          <fieldset>
+            <legend>项目</legend>
+            <label>
+              项目名称
+              <input name="projectName" value="湖畔别墅 2F 改造" />
+            </label>
+            <label>
+              楼层 / 站数
+              <input name="stops" type="number" min="2" max="6" value="3" />
+            </label>
+            <label>
+              施工位置
+              <select name="siteZone">
+                <option value="stair">现有楼梯区域</option>
+                <option value="atrium">中空区域</option>
+                <option value="external">外接井道</option>
+              </select>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>现有楼梯 / 楼板</legend>
+            <div class="grid-2">
+              <label>
+                楼梯洞口宽度 mm
+                <input name="stairWidth" type="number" min="800" value="2200" />
+              </label>
+              <label>
+                楼梯洞口进深 mm
+                <input name="stairDepth" type="number" min="1000" value="3900" />
+              </label>
+              <label>
+                保留通行宽度 mm
+                <input name="keepPassage" type="number" min="0" value="900" />
+              </label>
+              <label>
+                楼板结构厚度 mm
+                <input name="slabThickness" type="number" min="80" value="160" />
+              </label>
+            </div>
+            <label class="check-row">
+              <input name="hasLoadBearingWall" type="checkbox" checked />
+              临近承重墙 / 主梁
+            </label>
+            <label class="check-row">
+              <input name="hasPipeRisk" type="checkbox" />
+              疑似管线穿越
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>拟建电梯井</legend>
+            <div class="grid-2">
+              <label>
+                井道净宽 mm
+                <input name="shaftWidth" type="number" min="900" value="1450" />
+              </label>
+              <label>
+                井道净深 mm
+                <input name="shaftDepth" type="number" min="900" value="1500" />
+              </label>
+              <label>
+                预留安全边 mm
+                <input name="margin" type="number" min="50" value="120" />
+              </label>
+              <label>
+                顶层净空 mm
+                <input name="overhead" type="number" min="2200" value="2850" />
+              </label>
+              <label>
+                底坑深度 mm
+                <input name="pitDepth" type="number" min="0" value="250" />
+              </label>
+              <label>
+                拟拆楼板层数
+                <input name="demoFloors" type="number" min="1" max="5" value="2" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>分层拆除策略</legend>
+            <div id="floorStrategy" class="floor-strategy"></div>
+          </fieldset>
+        </form>
+      </section>
+
+      <section class="panel drawing-panel" aria-label="平面示意">
+        <div class="panel-heading">
+          <h2>拆除 / 保留示意</h2>
+          <div class="legend">
+            <span><i class="retain"></i>保留</span>
+            <span><i class="remove"></i>拆除</span>
+            <span><i class="shaft"></i>井道</span>
+          </div>
+        </div>
+        <div class="canvas-shell">
+          <svg id="planSvg" viewBox="0 0 720 520" role="img" aria-label="拆除保留平面示意"></svg>
+        </div>
+        <div id="dimensionStrip" class="dimension-strip"></div>
+        <h3>分层拆除 / 保留记录</h3>
+        <div class="table-wrap layer-table">
+          <table>
+            <thead>
+              <tr>
+                <th>区间</th>
+                <th>楼板</th>
+                <th>楼梯段</th>
+                <th>梁 / 承重墙</th>
+                <th>管线</th>
+                <th>结论</th>
+              </tr>
+            </thead>
+            <tbody id="layerRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel result-panel" aria-label="测算结果">
+        <div class="panel-heading">
+          <h2>判断结果</h2>
+          <span id="feasibilityBadge">待复核</span>
+        </div>
+        <div id="kpiGrid" class="kpi-grid"></div>
+        <h3>风险与建议</h3>
+        <ul id="riskList" class="risk-list"></ul>
+        <h3>报告数据</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>项目</th>
+                <th>数值</th>
+                <th>状态</th>
+              </tr>
+            </thead>
+            <tbody id="reportRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <section class="report-panel">
+      <div>
+        <h2>第一版代码目标</h2>
+        <p>这版先把“现有楼梯区域如何拆、哪些部分必须保留、哪些风险要复核”变成可计算的数据结构。后续 LiDAR 扫描值会自动填入这些字段。</p>
+      </div>
+      <pre id="jsonOutput" aria-label="报告 JSON"></pre>
+    </section>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
